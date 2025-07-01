@@ -680,6 +680,34 @@ impl IdProvider for HimmelblauProvider {
     }
 
     #[instrument(skip(self, old_token, tpm, machine_key))]
+    async fn store_ticket_in_keyring(
+        &self,
+        ticket: &[u8],
+        uid: u32,
+        cache_type: &str,
+    ) -> Result<Vec<u8>, IdpError> {
+        use keyring::Keyring;
+
+        let keyring_name = format!("KEYRING:persistent:{}", uid);
+        let keyring = Keyring::new("KRB5CC", &keyring_name)
+            .map_err(|e| IdpError::GeneralFailure(format!("Failed to create keyring: {}", e)))?;
+
+        // Store the ticket in the keyring
+        let key_name = format!("{}-ticket", cache_type);
+        keyring.set_password(&key_name, std::str::from_utf8(ticket).map_err(|e| {
+            IdpError::GeneralFailure(format!("Failed to convert ticket to string: {}", e))
+        })?)
+        .map_err(|e| IdpError::GeneralFailure(format!("Failed to store ticket: {}", e)))?;
+
+        // Get the ticket back from the keyring to ensure it's stored correctly
+        let stored_ticket = keyring.get_password(&key_name).map_err(|e| {
+            IdpError::GeneralFailure(format!("Failed to retrieve stored ticket: {}", e))
+        })?;
+
+        Ok(stored_ticket.into_bytes())
+    }
+
+    #[instrument(skip(self, old_token, tpm, machine_key))]
     async fn unix_user_ccaches(
         &self,
         id: &Id,
@@ -710,6 +738,8 @@ impl IdProvider for HimmelblauProvider {
                 return (vec![], vec![]);
             }
         };
+
+        // Fetch the tickets
         let cloud_ccache = self
             .client
             .read()
@@ -722,6 +752,20 @@ impl IdProvider for HimmelblauProvider {
             .await
             .fetch_ad_ccache(&prt, tpm, machine_key)
             .unwrap_or(vec![]);
+
+        // Store them in the keyring
+        let uid = match old_token {
+            Some(token) => token.uidnumber,
+            None => 0, // Fallback to root if no token
+        };
+
+        let cloud_ccache = self
+            .store_ticket_in_keyring(&cloud_ccache, uid, "cloud")
+            .unwrap_or(cloud_ccache);
+        let ad_ccache = self
+            .store_ticket_in_keyring(&ad_ccache, uid, "ad")
+            .unwrap_or(ad_ccache);
+
         (cloud_ccache, ad_ccache)
     }
 
