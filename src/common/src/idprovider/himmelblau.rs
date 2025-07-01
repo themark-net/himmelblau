@@ -728,7 +728,7 @@ impl IdProvider for HimmelblauProvider {
 
         // Store them in the keyring
         let uid = match old_token {
-            Some(token) => token.gidnumber,
+            Some(token) => token.uidnumber,
             None => 0, // Fallback to root if no token
         };
 
@@ -970,6 +970,7 @@ impl IdProvider for HimmelblauProvider {
                                 name: account_id.clone(),
                                 spn: account_id.clone(),
                                 uuid: fake_uuid,
+                                uidnumber: uid,
                                 real_gidnumber: Some(gid),
                                 gidnumber: uid,
                                 displayname: "".to_string(),
@@ -2518,6 +2519,7 @@ impl HimmelblauProvider {
             name: spn.clone(),
             spn: spn.clone(),
             uuid,
+            uidnumber,
             real_gidnumber: Some(gidnumber),
             gidnumber: uidnumber,
             displayname,

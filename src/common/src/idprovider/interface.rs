@@ -82,6 +82,7 @@ pub struct UserToken {
     pub name: String,
     pub spn: String,
     pub uuid: Uuid,
+    pub uidnumber: u32,
     #[serde(default)]
     pub real_gidnumber: Option<u32>, // This is the actual gidnumber.
     pub gidnumber: u32, // This is actually the uid, and is a legacy carryover from Kanidm
