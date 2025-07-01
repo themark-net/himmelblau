@@ -42,6 +42,8 @@ pub enum IdpError {
     KeyStore,
     /// The idp failed to interact with the configured TPM
     Tpm,
+    /// A general failure occurred
+    GeneralFailure(String),
 }
 
 #[derive(Debug, Clone)]
